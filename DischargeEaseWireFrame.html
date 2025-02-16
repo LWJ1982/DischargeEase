@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DischargeEase Wireframes</title>
-        <!-- Added colour -->
+    <!-- Added colour -->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -99,16 +99,41 @@
     </header>
 
     <nav>
-        <a href="#dashboard">Dashboard</a>
         <a href="#patient-records">Patient Records</a>
         <a href="#services">Services</a>
-        <a href="#notifications">Notifications</a>
-        <a href="#settings">Settings</a>
     </nav>
+    <!-- Added Container for the Webview -->
+    <div class="container">
+        <section id="dashboard" class="card">
+            <h3>Dashboard</h3>
+            <p>Overview of pending tasks and recent activity.</p>
+            <ul>
+                <li>Pending Patient Schedule: 10</li>
+            </ul>
+        </section>
 
-                <button>Save Changes</button>
+        <!-- Added LWJ services for the Webview -->
+        <section id="services" class="card">
+            <h3>Service Booking</h3>
+            <form>
+                <div class="form-group">
+                    <label for="service">Select Service:</label>
+                    <select id="service">
+                        <option>Medication Counseling</option>
+                        <option>Caregiver Training</option>
+                        <option>Home Safety Assessment</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="date">Select Date:</label>
+                    <input type="date" id="date">
+                </div>
+
+                <button>Book Service</button>
             </form>
         </section>
+
     </div>
 </body>
 
