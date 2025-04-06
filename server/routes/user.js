@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
-const { User, Profile } = require("../models");
+const User = require("../models");
 const yup = require("yup");
 const { sign } = require("jsonwebtoken");
 require("dotenv").config();
@@ -107,17 +107,17 @@ const loginSchema = yup.object({
 //           </p>
 //         </div>
 //       `,
-//   };
+// //   };
 
-  try {
-    await emailTransporter.sendMail(mailOptions);
-    console.log("Verification email sent to:", email);
-    return true;
-  } catch (error) {
-    console.error("Email sending error:", error);
-    return false;
-  }
-}
+//   try {
+//     await emailTransporter.sendMail(mailOptions);
+//     console.log("Verification email sent to:", email);
+//     return true;
+//   } catch (error) {
+//     console.error("Email sending error:", error);
+//     return false;
+//   }
+// }
 
 // CRUD API functions
 // Register Create Function
