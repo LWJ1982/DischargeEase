@@ -5,9 +5,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const db = require("./models");
-const addressRoutes = require("./routes/address");
-const userRoutes = require("./routes/user");
-const profileRoutes = require("./routes/profile");
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -44,11 +42,20 @@ app.use(
   "/uploads/profile-pictures",
   express.static(path.join(__dirname, "uploads", "profile-pictures"))
 );
+// Serve the 'uploads/attachments' directory
+app.use(
+  "/uploads/patient-record",
+  express.static(path.join(__dirname, "uploads", "attachments"))
+);
+// Serve the 'uploads/notifications' directory
+app.use(
+  "/uploads/notifications",
+  express.static(path.join(__dirname, "uploads", "notifications"))
+);
 
 // Routes
-app.use("/api/v1/addresses", addressRoutes);
-app.use("/api/v1/user", userRoutes);
-app.use("/api/v1/profile", profileRoutes);
+app.use("/api/v1/user", require("./routes/user"));
+
 
 // Root route for API health check
 app.get("/", (req, res) => {
