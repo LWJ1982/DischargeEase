@@ -1,3 +1,9 @@
+// index.js
+// This file initializes the Sequelize instance and imports all models in the directory.
+// It also sets up associations between models if any exist.
+// This is the main entry point for the models in the application.
+// server/models/index.js
+
 const fs = require("fs");
 const path = require("path");
 const Sequelize = require("sequelize");
@@ -6,21 +12,10 @@ const env = process.env.NODE_ENV || "development";
 const db = {};
 
 // Create Sequelize instance
-const sequelize = new Sequelize(
-  process.env.DB_NAME,
-  process.env.DB_USER,
-  process.env.DB_PASSWORD,
-  {
-    host: process.env.DB_HOST,
+const sequelize = new Sequelize({
     dialect: "sqlite",
     storage: process.env.DB_STORAGE || "./database.sqlite",
-    port: process.env.DB_PORT || 3306,
-    pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000,
-    },
+
     logging: process.env.NODE_ENV === "development" ? console.log : false
   }
 );

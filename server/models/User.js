@@ -20,35 +20,12 @@ module.exports = (sequelize, DataTypes) => {
       },
       password: {
         type: DataTypes.STRING(100),
-        allowNull: true,
-      },
-      email_verified: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: false,
-      },
-      verification_token: {
-        type: DataTypes.STRING(255),
-        allowNull: true,
-      },
-      provider: {
-        type: DataTypes.STRING(100),
-        defaultValue: "local"
-      },
-      role: {
-        type: DataTypes.STRING,
         allowNull: false,
-        validate: {
-            isIn: {
-              args: [['Patient', 'Caregiver', 'Nurse', 'Doctor', 'Admin']],
-              msg: "Role must be one of 'Patient', 'Caregiver', 'Nurse', 'Doctor', 'Admin'"
-          }
-        }
-    },
-    singpass_id: {
-      type: DataTypes.STRING,
-      unique: true,
-      allowNull: false
-  },
+      },
+      // email_verified: {
+      //   type: DataTypes.BOOLEAN,
+      //   defaultValue: false,
+      // },
       created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,
@@ -57,30 +34,60 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,
       },
-    },
-    {
-      tableName: "users",
-      timestamps: false, // Since we’re using `created_at` manually
-    }
-  );
+      role: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+          isIn: [['Doctor', 'Nurse', 'Caregiver', 'Admin']]
+        }
+      },
+      profileDetails: {
+        type: DataTypes.JSON, // Map structure in SQLite
+        allowNull: true
+      }
+    }, {
+    tableName: 'users'
+  });
+
 
   // Associations
   User.associate = (models) => {
-    // Many-to-Many
-    User.belongsToMany(models.Address, {
-      through: models.UserAddress, // or simply 'UserAddresses' if you prefer an implicit model
-      foreignKey: "user_id", // key in the join table
-      otherKey: "address_id", // secondary key in the join table
-      onDelete: "CASCADE",
-    });
 
-    // If you still have a Profile model:
-    User.hasOne(models.Profile, {
-      foreignKey: "user_id",
-      as: "Profile",
-      onDelete: "CASCADE",
-    });
-  };
+// One-to-One relationship with Profile
+User.hasOne(models.Profile, {
+  foreignKey: 'user_id',
+  as: 'Profile',
+  onDelete: 'CASCADE',
+});
+
+// One-to-Many relationship with PatientRecord
+User.hasMany(models.PatientRecord, {
+  foreignKey: 'patient_id',
+  as: 'PatientRecords',
+  onDelete: 'CASCADE',
+});
+
+// One-to-Many relationship with ServiceBooking (as patient)
+User.hasMany(models.ServiceBooking, {
+  foreignKey: 'patient_id',
+  as: 'ServiceBookingsAsPatient',
+  onDelete: 'CASCADE',
+});
+
+// One-to-Many relationship with ServiceBooking (as nurse)
+User.hasMany(models.ServiceBooking, {
+  foreignKey: 'nurse_id',
+  as: 'ServiceBookingsAsNurse',
+  onDelete: 'SET NULL',
+});
+
+// One-to-Many relationship with Notification (as recipient)
+User.hasMany(models.Notification, {
+  foreignKey: 'recipient_id',
+  as: 'Notifications',
+  onDelete: 'CASCADE',
+});
+};
 
   return User;
 };
