@@ -313,7 +313,7 @@ router.post('/:id/erratum', validateToken, async (req, res) => {
 router.get('/:id/errata', validateToken, async (req, res) => {
     try {
         // Check authorization
-        if (!['Doctor', 'nurse', 'admin'].includes(req.user.role)) {
+        if (!['doctor', 'nurse', 'admin'].includes(req.user.role)) {
             return res.status(403).json({
                 success: false,
                 message: 'Unauthorized to view errata'
