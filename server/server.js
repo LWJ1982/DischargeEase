@@ -55,7 +55,9 @@ app.use(
 
 // Routes
 app.use("/api/v1/user", require("./routes/user"));
-
+app.use("/api/v1/profile", require("./routes/profile"));
+app.use("/api/v1/medicalrecords", require("./routes/medicalRecords"));
+app.use("/api/v1/servicebooking", require("./routes/serviceBooking"));
 
 // Root route for API health check
 app.get("/", (req, res) => {

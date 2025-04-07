@@ -25,9 +25,9 @@ module.exports = (sequelize, DataTypes) => {
                 allowNull: true,
             },
             drawings: {
-                type: DataTypes.STRING(255),// Array of drawing paths/data
-                allowNull: true
-            },
+                type: DataTypes.JSON, // array of strings (paths)
+                allowNull: true,
+              }
         },
         {
             tableName: 'patient_records',

@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
-const User = require("../models");
+const { User, Profile,PatientRecord } = require("../models");
 const yup = require("yup");
 const { sign } = require("jsonwebtoken");
 require("dotenv").config();
@@ -50,9 +50,10 @@ let registerSchema = yup.object({
 
   role: yup
     .string()
+    .lowercase()
     .oneOf(
-      ["Doctor", "Nurse", "Caregiver", "Admin"],
-      "Role must be one of the following: Doctor, Nurse, Caregiver, Admin"
+      ["doctor", "nurse", "caregiver", "admin", "patient"],
+      "Role must be one of the following: doctor, nurse, caregiver, admin, patient"
     )
 });
 
@@ -160,6 +161,17 @@ router.post("/register", async (req, res) => {
       mobile: result.mobile,
     });
 
+    if (data.role === "patient") {
+      await PatientRecord.create({
+        patient_id: result.id,
+        name: result.name,
+        ward: result.ward || null,
+        medical_history: result.medical_history || null,
+        drawings: []
+
+      });
+    }
+
     // // Send verification email
     // await sendVerificationEmail(data.email, verificationToken);
 
@@ -240,6 +252,7 @@ router.post("/login", async (req, res) => {
       id: user.id,
       email: user.email,
       name: user.name,
+      role: user.role,
       mobile: user.Profile?.mobile,
       profilePicture: user.Profile?.profile_picture,
     };
@@ -264,6 +277,10 @@ router.get("/auth", validateToken, (req, res) => {
     id: req.user.id,
     email: req.user.email,
     name: req.user.name,
+    role: req.user.role,
+    createdAt: req.user.createdAt,
+    updatedAt: req.user.updatedAt,
+    profileDetails: req.user.profileDetails
   };
   res.json({ user: userInfo });
 });
