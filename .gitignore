@@ -4,4 +4,4 @@ node_modules/
 .mime-*
 *.swp
 *.log
-*.env
+.env
