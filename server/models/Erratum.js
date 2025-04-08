@@ -13,7 +13,7 @@ module.exports = (sequelize, DataTypes) => {
                 allowNull: false,
             },
             submitted_by: {
-                type: DataTypes.INTEGER,
+                type: DataTypes.STRING,
                 allowNull: false,
             },
             correction_details: {

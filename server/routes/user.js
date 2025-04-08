@@ -161,16 +161,17 @@ router.post("/register", async (req, res) => {
       mobile: result.mobile,
     });
 
-    if (data.role === "patient") {
-      await PatientRecord.create({
-        patient_id: result.id,
-        name: result.name,
-        ward: result.ward || null,
-        medical_history: result.medical_history || null,
-        drawings: []
+    // Do not auto create patient in patient record
+    // if (data.role === "patient") {
+    //   await PatientRecord.create({
+    //     patient_id: result.id,
+    //     name: result.name,
+    //     ward: result.ward || null,
+    //     medical_history: result.medical_history || null,
+    //     drawings: []
 
-      });
-    }
+    //   });
+    // }
 
     // // Send verification email
     // await sendVerificationEmail(data.email, verificationToken);

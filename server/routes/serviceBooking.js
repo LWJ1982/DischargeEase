@@ -7,25 +7,25 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const yup = require('yup');
-const { Op } = require('sequelize');
+const { Sequelize, Op } = require('sequelize');
 
-
-const serviceSchema = yup.object().shape({
-    service_name: yup
-        .string()
-        .required('Service name is required')
-        .lowercase()
-        .oneOf([
-            'discharge medication counselling',
-            'caregiver training',
-            'home assessment'
-        ], 'Services must be one of the following: Discharge Medication Counselling',
-            'Caregiver Training',
-            'Home Assessment'),
-    description: yup
-        .string()
-        .required('Description is required')
-});
+//Prefixed so yup validation removed
+// const serviceSchema = yup.object().shape({
+//     service_name: yup
+//         .string()
+//         .required('Service name is required')
+//         .lowercase()
+//         .oneOf([
+//             'discharge medication counselling',
+//             'caregiver training',
+//             'home assessment'
+//         ], 'Services must be one of the following: Discharge Medication Counselling',
+//             'Caregiver Training',
+//             'Home Assessment'),
+//     description: yup
+//         .string()
+//         .required('Description is required')
+// });
 
 
 const serviceBookingSchema = yup.object().shape({
@@ -97,7 +97,7 @@ router.get('/services', validateToken, async (req, res) => {
     }
 });
 
-// // Useless
+// // for future use, to create services
 // router.post('/services', validateToken, async (req, res) => {
 //     try {
 //        // Only admin can create services
@@ -134,9 +134,16 @@ router.get('/patient/:patientId', validateToken, async (req, res) => {
     try {
         const { patientId } = req.params;
 
+        // Check if the patient exists
+        const patientRecord = await PatientRecord.findByPk(patientId);
+        if (!patientRecord) {
+            return res.status(404).json({
+                success: false,
+                message: 'Patient not found'
+            });
+        }
+
         // Check authorization (patient's own bookings, or medical staff)
-        //For future use, to allow all parties to view the bookings
-        //For now, only nurse can view the bookings
         if (
             req.user.id !== parseInt(patientId) &&
             !['doctor', 'nurse', 'admin'].includes(req.user.role)
@@ -147,26 +154,38 @@ router.get('/patient/:patientId', validateToken, async (req, res) => {
             });
         }
 
-        const bookings = await ServiceBooking.findAll({
-            where: { patient_id: patientId },
+        // Get patient details along with their service bookings
+        const patientWithBookings = await PatientRecord.findByPk(patientId, {
             include: [
                 {
-                    model: Service,
-                    as: 'Service',
-                    attributes: ['id', 'service_name', 'description']
-                },
-                {
-                    model: User,
-                    as: 'nurse',
-                    attributes: ['id', 'name', 'email', 'role']
+                    model: ServiceBooking,
+                    as: 'ServiceBookings',
+                    include: [
+                        {
+                            model: Service,
+                            as: 'Service',
+                            attributes: ['id', 'service_name', 'description']
+                        },
+                        {
+                            model: User,
+                            as: 'nurse',
+                            attributes: ['id', 'name', 'email', 'role']
+                        }
+                    ]
                 }
-            ],
-            order: [['schedule_time', 'ASC']]
+            ]
         });
 
+        // If you want to separate the patient data from bookings
         return res.status(200).json({
             success: true,
-            data: bookings
+            patient: {
+                id: patientWithBookings.id,
+                name: patientWithBookings.name,
+                ward: patientWithBookings.ward,
+                // Include other patient fields as needed
+            },
+            data: patientWithBookings.ServiceBookings || []
         });
     } catch (error) {
         console.error('Error fetching patient bookings:', error);
@@ -228,7 +247,11 @@ router.get('/nurse/:nurseId', validateToken, async (req, res) => {
     }
 });
 
-// Create a new service booking (for doctors to assign services)
+// Create a new auto assign service booking (for doctors to assign services)
+//The patient_id here is the id in the patient record, not the patient id in the patient record
+//Only need 2 input Patient ID and Service ID, the rest are auto assigned
+//The patient name is optional, if not provided, the name from the patient record will be used
+
 router.post('/', validateToken, async (req, res) => {
     try {
         // Only doctors can create service bookings
@@ -239,7 +262,7 @@ router.post('/', validateToken, async (req, res) => {
             });
         }
 
-        const { patient_id, patient_name, service_id, nurse_id, schedule_time } = req.body;
+        const { patient_id, patient_name, service_id, schedule_time } = req.body;
 
         // Validate the patient exists
         const patient = await PatientRecord.findByPk(patient_id);
@@ -259,41 +282,95 @@ router.post('/', validateToken, async (req, res) => {
             });
         }
 
-        // If nurse_id is provided, validate the nurse exists and is a nurse
-        if (nurse_id) {
-            const nurse = await User.findByPk(nurse_id);
-            if (!nurse || nurse.role !== 'nurse') {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Valid nurse not found'
-                });
-            }
-        }
+        // Replace the existing auto-scheduling logic with this improved version
+        // that ensures even distribution of patients among nurses
 
-        // Auto-scheduling logic if nurse has existing bookings for this patient
+        // Auto-scheduling logic to assign a nurse
+        let nurse = null;
         let finalScheduleTime = new Date(schedule_time);
 
-        if (nurse_id) {
+        // Find all nurses
+        const allNurses = await User.findAll({
+            where: {
+                role: 'nurse'
+            },
+            attributes: ['id', 'name', 'role']
+        });
+
+        if (allNurses.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'No available nurses to assign'
+            });
+        }
+
+        // Get the current booking count for each nurse
+        const activeStatuses = ['pending', 'scheduled', 'in progress'];
+        const nurseBookingCounts = {};
+
+        // Initialize all nurses with 0 bookings
+        allNurses.forEach(nurse => {
+            nurseBookingCounts[nurse.id] = 0;
+        });
+
+        // Get current booking counts
+        const existingBookings = await ServiceBooking.findAll({
+            where: {
+                status: {
+                    [Op.in]: activeStatuses
+                }
+            },
+            attributes: ['nurse_id'],
+            raw: true
+        });
+
+        // Count bookings for each nurse
+        existingBookings.forEach(booking => {
+            if (booking.nurse_id && nurseBookingCounts[booking.nurse_id] !== undefined) {
+                nurseBookingCounts[booking.nurse_id]++;
+            }
+        });
+
+        // Find the nurse with the minimum number of bookings
+        let minBookings = Number.MAX_SAFE_INTEGER;
+        let nursesWithMinBookings = [];
+
+        Object.keys(nurseBookingCounts).forEach(nurseId => {
+            const bookingCount = nurseBookingCounts[nurseId];
+
+            if (bookingCount < minBookings) {
+                minBookings = bookingCount;
+                nursesWithMinBookings = [nurseId];
+            } else if (bookingCount === minBookings) {
+                nursesWithMinBookings.push(nurseId);
+            }
+        });
+
+        // If there are multiple nurses with the same minimum count, randomly choose one
+        const selectedNurseId = nursesWithMinBookings[Math.floor(Math.random() * nursesWithMinBookings.length)];
+        nurse = allNurses.find(n => n.id == selectedNurseId);
+
+        // Auto-scheduling logic if nurse has existing bookings for this patient
+        if (nurse.id) {
             // Check for existing bookings for the same patient with this nurse
-            const existingBookings = await ServiceBooking.findAll({
+            const existingPatientBookings = await ServiceBooking.findAll({
                 where: {
                     patient_id,
-                    nurse_id,
+                    nurse_id: nurse.id,
                     status: {
-                        [Op.in]: ['pending', 'scheduled']
+                        [Op.in]: activeStatuses
                     }
                 },
                 order: [['schedule_time', 'DESC']]
             });
 
             // If there are existing bookings, schedule this one right after the last one
-            if (existingBookings.length > 0) {
-                const lastBooking = existingBookings[0];
+            if (existingPatientBookings.length > 0) {
+                const lastBooking = existingPatientBookings[0];
                 // Add 30 minutes to the last booking time for the new booking
                 finalScheduleTime = new Date(new Date(lastBooking.schedule_time).getTime() + 30 * 60000);
             }
         }
-
         // Use patient name from request if provided, otherwise use the name from patient record
         const patientName = patient_name || patient.name;
 
@@ -302,19 +379,18 @@ router.post('/', validateToken, async (req, res) => {
             patient_id,
             patient_name: patientName, // Include patient name in the booking
             service_id,
-            nurse_id,
+            nurse_id: nurse.id,
+            nurse_name: nurse.name, // Include nurse name in the booking
             schedule_time: finalScheduleTime,
             status: 'scheduled'
         });
 
-        // Send notification to the nurse if assigned
-        if (nurse_id) {
-            await Notification.create({
-                recipient_id: nurse_id,
-                message: `You have been assigned a new ${service.service_name} service for patient ${patient.name} at ${finalScheduleTime.toLocaleString()}`,
-                timestamp: new Date()
-            });
-        }
+        // Send notification to the assigned nurse
+        await Notification.create({
+            recipient_id: nurse.id,
+            message: `You have been assigned a new ${service.service_name} service for patient ${patientName} at ${finalScheduleTime.toLocaleString()}`,
+            timestamp: new Date()
+        });
 
         return res.status(201).json({
             success: true,
@@ -331,7 +407,9 @@ router.post('/', validateToken, async (req, res) => {
     }
 });
 
-// Update service booking status
+// Update service booking status in case auto assignment fails
+//This is for the nurse to update the status of the booking after it has been created
+//Only nurses and doctors can update the status of the booking
 router.put('/:bookingId', validateToken, async (req, res) => {
     try {
         const { bookingId } = req.params;
@@ -414,7 +492,7 @@ router.put('/:bookingId', validateToken, async (req, res) => {
     }
 });
 
-// Assign a nurse to a booking
+// Assign a nurse to a booking after creation if nurse unavailable
 router.put('/:bookingId/assign', validateToken, async (req, res) => {
     try {
         // Only doctors or admins can assign nurses
@@ -528,11 +606,25 @@ router.post('/:bookingId/home-photos', validateToken, upload.array('photos', 10)
         const { bookingId } = req.params;
 
         // Find the booking
-        const booking = await ServiceBooking.findByPk(bookingId);
+        const booking = await ServiceBooking.findByPk(bookingId, {
+            include: [{
+                model: Service,
+                as: 'Service'
+            }]
+        });
+
         if (!booking) {
             return res.status(404).json({
                 success: false,
                 message: 'Booking not found'
+            });
+        }
+
+        // Check if the service is home assessment (id = 3)
+        if (booking.service_id !== 3) {
+            return res.status(403).json({
+                success: false,
+                message: 'Home photos can only be uploaded for home assessment services'
             });
         }
 
@@ -616,6 +708,15 @@ router.post('/:bookingId/medication-info', validateToken, async (req, res) => {
                 message: 'Booking not found'
             });
         }
+
+        // Check if the service is discharge medication counselling (id = 1)
+        if (booking.service_id !== 1) {
+            return res.status(403).json({
+                success: false,
+                message: 'Medications can only be for discharge medication counselling'
+            });
+        }
+
 
         // Check authorization (patient, caregiver, or medical staff)
         const patient = await PatientRecord.findByPk(booking.patient_id);
