@@ -11,6 +11,10 @@ module.exports = (sequelize, DataTypes) => {
             service_name: {
                 type: DataTypes.STRING(100),
                 allowNull: false,
+                //Future, to include added services below
+                validate: {
+                    isIn: [['discharge medication counselling', 'caregiver training', 'home assessment']],
+                  }
             },
             description: {
                 type: DataTypes.TEXT,

@@ -15,7 +15,6 @@ const db = {};
 const sequelize = new Sequelize({
     dialect: "sqlite",
     storage: process.env.DB_STORAGE || "./database.sqlite",
-
     logging: process.env.NODE_ENV === "development" ? console.log : false
   }
 );
@@ -41,6 +40,40 @@ Object.keys(db).forEach((modelName) => {
     db[modelName].associate(db);
   }
 });
+
+
+// Insert default services
+async function insertDefaultServices() {
+  const { Service } = db;
+
+  const defaultServices = [
+    {
+      service_name: 'discharge medication counselling',
+      description: 'To allow for medication query with nurse',
+    },
+    {
+      service_name: 'caregiver training',
+      description: 'To train the caregiver to take care of the patient',
+    },
+    {
+      service_name: 'home assessment',
+      description: 'CareGiver to perform assessment of home',
+    }
+  ];
+
+  for (const service of defaultServices) {
+    await Service.findOrCreate({
+      where: { service_name: service.service_name },
+      defaults: service
+    });
+  }
+
+  console.log("🟢 Default services inserted.");
+}
+
+// Attach to db object for optional use elsewhere
+db.insertDefaultServices = insertDefaultServices;
+
 
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;

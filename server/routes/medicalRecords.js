@@ -217,6 +217,7 @@ router.post('/', validateToken, async (req, res) => {
 });
 
 // Update medical record with new drawings
+//In postman, under body, form-data. key is drawings, value is the file to upload
 router.put('/:id/drawings', validateToken, upload.array('drawings', 5), async (req, res) => {
     try {
         // Doctors or nurses can update records
@@ -238,7 +239,7 @@ router.put('/:id/drawings', validateToken, upload.array('drawings', 5), async (r
         }
 
         // Process uploaded files
-        const fileUrls = req.files.map(file => `/uploads/attachments/${file.filename}`);
+        const fileUrls = req.files.map(file => `/uploads/medical-pictures/${file.filename}`);
 
         // Update drawings in the record
         const currentDrawings = record.drawings || [];

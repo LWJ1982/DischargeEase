@@ -6,6 +6,39 @@ const { validateToken } = require("../middlewares/auth");
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const yup = require('yup');
+const { Op } = require('sequelize');
+
+
+const serviceSchema = yup.object().shape({
+    service_name: yup
+        .string()
+        .required('Service name is required')
+        .lowercase()
+        .oneOf([
+            'discharge medication counselling',
+            'caregiver training',
+            'home assessment'
+        ], 'Services must be one of the following: Discharge Medication Counselling',
+            'Caregiver Training',
+            'Home Assessment'),
+    description: yup
+        .string()
+        .required('Description is required')
+});
+
+
+const serviceBookingSchema = yup.object().shape({
+    status: yup
+        .string()
+        .required('Status is required, Default is "pending"')
+        .lowercase()
+        .oneOf([
+            'pending', 'scheduled', 'in progress', 'completed', 'cancelled'
+        ], 'Status must be one of the following: pending,',
+            'scheduled, in progress, completed, cancelled'),
+});
+
 
 // Configure multer for home assessment photos
 const storage = multer.diskStorage({
@@ -22,14 +55,14 @@ const storage = multer.diskStorage({
     }
 });
 
-const upload = multer({ 
+const upload = multer({
     storage: storage,
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
     fileFilter: (req, file, cb) => {
         const allowedTypes = /jpeg|jpg|png|gif/;
         const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
         const mimetype = allowedTypes.test(file.mimetype);
-        
+
         if (mimetype && extname) {
             return cb(null, true);
         } else {
@@ -41,6 +74,14 @@ const upload = multer({
 // Get all services
 router.get('/services', validateToken, async (req, res) => {
     try {
+        // Check authorization
+        if (!['doctor', 'nurse', 'admin'].includes(req.user.role)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Unauthorized to view services'
+            });
+        }
+
         const services = await Service.findAll();
         return res.status(200).json({
             success: true,
@@ -56,46 +97,48 @@ router.get('/services', validateToken, async (req, res) => {
     }
 });
 
-// Create a new service
-router.post('/services', validateToken, async (req, res) => {
-    try {
-        // Only admin can create services
-        if (req.user.role !== 'admin') {
-            return res.status(403).json({
-                success: false,
-                message: 'Only administrators can create services'
-            });
-        }
+// // Useless
+// router.post('/services', validateToken, async (req, res) => {
+//     try {
+//        // Only admin can create services
+// if (req.user.role !== 'Admin') {
+//     return res.status(403).json({
+//         success: false,
+//         message: 'Only administrators can create services'
+//     });
+// }
 
-        const { service_name, description } = req.body;
-        const newService = await Service.create({
-            service_name,
-            description
-        });
+//         const { service_name, description } = req.body;
+//         const newService = await Service.create({
+//             service_name,
+//             description
+//         });
 
-        return res.status(201).json({
-            success: true,
-            data: newService,
-            message: 'Service created successfully'
-        });
-    } catch (error) {
-        console.error('Error creating service:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Server error',
-            error: error.message
-        });
-    }
-});
+//         return res.status(201).json({
+//             success: true,
+//             data: newService,
+//             message: 'Service created successfully'
+//         });
+//     } catch (error) {
+//         console.error('Error creating service:', error);
+//         return res.status(500).json({
+//             success: false,
+//             message: 'Server error',
+//             error: error.message
+//         });
+//     }
+// });
 
 // Get all bookings for a specific patient
 router.get('/patient/:patientId', validateToken, async (req, res) => {
     try {
         const { patientId } = req.params;
-        
+
         // Check authorization (patient's own bookings, or medical staff)
+        //For future use, to allow all parties to view the bookings
+        //For now, only nurse can view the bookings
         if (
-            req.user.id !== parseInt(patientId) && 
+            req.user.id !== parseInt(patientId) &&
             !['doctor', 'nurse', 'admin'].includes(req.user.role)
         ) {
             return res.status(403).json({
@@ -139,10 +182,13 @@ router.get('/patient/:patientId', validateToken, async (req, res) => {
 router.get('/nurse/:nurseId', validateToken, async (req, res) => {
     try {
         const { nurseId } = req.params;
-        
+
         // Check authorization (nurse's own assignments, or admin/doctor)
+        //For this project only nurses can view their own assignments,
+        // tagging done in the association
+        //For future use, to allow all parties to view the bookings
         if (
-            req.user.id !== parseInt(nurseId) && 
+            req.user.id !== parseInt(nurseId) &&
             !['doctor', 'admin'].includes(req.user.role)
         ) {
             return res.status(403).json({
@@ -161,7 +207,7 @@ router.get('/nurse/:nurseId', validateToken, async (req, res) => {
                 },
                 {
                     model: PatientRecord,
-                    as: 'Patient',
+                    as: 'patient',
                     attributes: ['id', 'name', 'ward']
                 }
             ],
@@ -193,7 +239,7 @@ router.post('/', validateToken, async (req, res) => {
             });
         }
 
-        const { patient_id, service_id, nurse_id, schedule_time } = req.body;
+        const { patient_id, patient_name, service_id, nurse_id, schedule_time } = req.body;
 
         // Validate the patient exists
         const patient = await PatientRecord.findByPk(patient_id);
@@ -234,7 +280,7 @@ router.post('/', validateToken, async (req, res) => {
                     patient_id,
                     nurse_id,
                     status: {
-                        [sequelize.Op.in]: ['Pending', 'Scheduled']
+                        [Op.in]: ['pending', 'scheduled']
                     }
                 },
                 order: [['schedule_time', 'DESC']]
@@ -248,13 +294,17 @@ router.post('/', validateToken, async (req, res) => {
             }
         }
 
+        // Use patient name from request if provided, otherwise use the name from patient record
+        const patientName = patient_name || patient.name;
+
         // Create the booking
         const newBooking = await ServiceBooking.create({
             patient_id,
+            patient_name: patientName, // Include patient name in the booking
             service_id,
             nurse_id,
             schedule_time: finalScheduleTime,
-            status: 'Scheduled'
+            status: 'scheduled'
         });
 
         // Send notification to the nurse if assigned
@@ -286,7 +336,7 @@ router.put('/:bookingId', validateToken, async (req, res) => {
     try {
         const { bookingId } = req.params;
         const { status } = req.body;
-        
+
         // Check authorization (only nurses and doctors can update status)
         if (!['nurse', 'doctor', 'admin'].includes(req.user.role)) {
             return res.status(403).json({
@@ -296,7 +346,8 @@ router.put('/:bookingId', validateToken, async (req, res) => {
         }
 
         // Validate status value
-        const validStatuses = ['Pending', 'Scheduled', 'In Progress', 'Completed', 'Cancelled'];
+        serviceBookingSchema
+        const validStatuses = ['pending', 'scheduled', 'in progress', 'completed', 'cancelled'];
         if (!validStatuses.includes(status)) {
             return res.status(400).json({
                 success: false,
@@ -309,7 +360,7 @@ router.put('/:bookingId', validateToken, async (req, res) => {
             include: [
                 {
                     model: PatientRecord,
-                    as: 'Patient',
+                    as: 'patient',
                     attributes: ['id', 'name']
                 },
                 {
@@ -329,7 +380,7 @@ router.put('/:bookingId', validateToken, async (req, res) => {
 
         // Check if user is the assigned nurse for this booking
         if (
-            req.user.role === 'nurse' && 
+            req.user.role === 'nurse' &&
             booking.nurse_id !== req.user.id
         ) {
             return res.status(403).json({
@@ -388,12 +439,8 @@ router.put('/:bookingId/assign', validateToken, async (req, res) => {
 
         // Find the booking
         const booking = await ServiceBooking.findByPk(bookingId, {
+            attributes: ['id', 'patient_name', 'nurse_id', 'service_id'],
             include: [
-                {
-                    model: PatientRecord,
-                    as: 'Patient',
-                    attributes: ['id', 'name']
-                },
                 {
                     model: Service,
                     as: 'Service',
@@ -410,15 +457,16 @@ router.put('/:bookingId/assign', validateToken, async (req, res) => {
         }
 
         // Update the booking with the nurse assignment
-        await booking.update({ 
+        await booking.update({
             nurse_id,
-            status: 'Scheduled' // Update status to scheduled once a nurse is assigned
+            status: 'scheduled' // Update status to scheduled once a nurse is assigned
         });
 
         // Send notification to the assigned nurse
         await Notification.create({
             recipient_id: nurse_id,
-            message: `You have been assigned a ${booking.Service.service_name} service for patient ${booking.Patient.name} at ${new Date(booking.schedule_time).toLocaleString()}`,
+            message: `You have been assigned a ${booking.Service.service_name} service for 
+            patient ${booking.patient_name} at ${new Date(booking.schedule_time).toLocaleString()}`,
             timestamp: new Date()
         });
 
@@ -429,19 +477,56 @@ router.put('/:bookingId/assign', validateToken, async (req, res) => {
         });
     } catch (error) {
         console.error('Error assigning nurse:', error);
+
+        let errorMessage = 'Server error';
+        let debugInfo = null;
+
+        // Sequelize validation or constraint error
+        if (error.name === 'SequelizeValidationError') {
+            errorMessage = 'Validation failed';
+            debugInfo = error.errors.map(e => e.message);
+        }
+
+        // Sequelize foreign key or database constraint issue
+        else if (error.name === 'SequelizeForeignKeyConstraintError') {
+            errorMessage = 'Invalid foreign key reference';
+            debugInfo = {
+                table: error.table,
+                fields: error.fields
+            };
+        }
+
+        // TypeError (e.g., trying to access property of undefined)
+        else if (error instanceof TypeError) {
+            errorMessage = 'Unexpected data structure. Likely null or undefined value accessed';
+            debugInfo = {
+                message: error.message,
+                stack: error.stack.split('\n').slice(0, 2) // top of the stack for easier reading
+            };
+        }
+
+        // General fallback
+        else {
+            debugInfo = {
+                name: error.name,
+                message: error.message,
+                stack: error.stack.split('\n').slice(0, 2)
+            };
+        }
         return res.status(500).json({
             success: false,
-            message: 'Server error',
-            error: error.message
+            message: errorMessage,
+            error: debugInfo
         });
     }
 });
 
 // Upload home environment photos for assessment
+//In postman, under body, form-data. key is photos, value is the file to upload
 router.post('/:bookingId/home-photos', validateToken, upload.array('photos', 10), async (req, res) => {
     try {
         const { bookingId } = req.params;
-        
+
         // Find the booking
         const booking = await ServiceBooking.findByPk(bookingId);
         if (!booking) {
@@ -454,7 +539,7 @@ router.post('/:bookingId/home-photos', validateToken, upload.array('photos', 10)
         // Check authorization (patient or caregiver can upload)
         const patient = await PatientRecord.findByPk(booking.patient_id);
         if (
-            req.user.id !== patient.patient_id && 
+            req.user.id !== patient.patient_id &&
             req.user.role !== 'caregiver'
         ) {
             return res.status(403).json({
@@ -469,7 +554,7 @@ router.post('/:bookingId/home-photos', validateToken, upload.array('photos', 10)
         // Store the photos in the booking metadata (we'll need to add a metadata JSON field to the model)
         let metadata = booking.metadata || {};
         metadata.homePhotos = [...(metadata.homePhotos || []), ...photoUrls];
-        
+
         await booking.update({ metadata });
 
         // Notify the nurse if one is assigned
@@ -499,12 +584,30 @@ router.post('/:bookingId/home-photos', validateToken, upload.array('photos', 10)
     }
 });
 
+
 // Upload medication information for discharge counseling
+//Postman body example:
+// {
+//     "medications": [
+//         {
+//             "name": "Ibuprofen",
+//             "dosage": "200mg",
+//             "frequency": "Every 6 hours",
+//             "duration": "5 days"
+//         },
+//         {
+//             "name": "Amoxicillin",
+//             "dosage": "500mg",
+//             "frequency": "Three times a day",
+//             "duration": "7 days"
+//         }
+//     ]
+// }
 router.post('/:bookingId/medication-info', validateToken, async (req, res) => {
     try {
         const { bookingId } = req.params;
         const { medications } = req.body;
-        
+
         // Find the booking
         const booking = await ServiceBooking.findByPk(bookingId);
         if (!booking) {
@@ -517,7 +620,7 @@ router.post('/:bookingId/medication-info', validateToken, async (req, res) => {
         // Check authorization (patient, caregiver, or medical staff)
         const patient = await PatientRecord.findByPk(booking.patient_id);
         if (
-            req.user.id !== patient.patient_id && 
+            req.user.id !== patient.patient_id &&
             !['doctor', 'nurse', 'caregiver'].includes(req.user.role)
         ) {
             return res.status(403).json({
@@ -529,7 +632,7 @@ router.post('/:bookingId/medication-info', validateToken, async (req, res) => {
         // Store the medication info in the booking metadata
         let metadata = booking.metadata || {};
         metadata.medications = medications;
-        
+
         await booking.update({ metadata });
 
         // Notify the nurse if one is assigned
@@ -563,18 +666,27 @@ router.post('/:bookingId/medication-info', validateToken, async (req, res) => {
 router.get('/history/:patientId', validateToken, async (req, res) => {
     try {
         const { patientId } = req.params;
-        
+
         // Check authorization (patient's own history, or medical staff)
-        const patient = await PatientRecord.findByPk(patientId);
-        if (!patient) {
+        const patientRecord = await PatientRecord.findByPk(patientId, {
+            include: [{
+                model: User,
+                as: 'patient',
+                attributes: ['id', 'name']
+            }]
+        });
+        if (!patientRecord || !patientRecord.patient) {
             return res.status(404).json({
                 success: false,
                 message: 'Patient not found'
             });
         }
 
+        const patientName = patientRecord.patient.name;
+        const patientMedicalHistory = patientRecord.medical_history;
+
         if (
-            req.user.id !== patient.patient_id && 
+            req.user.id !== patientRecord.patient_id &&
             !['doctor', 'nurse', 'admin'].includes(req.user.role)
         ) {
             return res.status(403).json({
@@ -585,9 +697,9 @@ router.get('/history/:patientId', validateToken, async (req, res) => {
 
         // Get all completed service bookings
         const serviceHistory = await ServiceBooking.findAll({
-            where: { 
+            where: {
                 patient_id: patientId,
-                status: 'Completed' 
+
             },
             include: [
                 {
@@ -604,9 +716,21 @@ router.get('/history/:patientId', validateToken, async (req, res) => {
             order: [['updatedAt', 'DESC']]
         });
 
+        // Prepare the response data
+        const responseData = {
+            patient: {
+                id: patientRecord.id,
+                patient_id: patientRecord.patient_id,
+                name: patientName,
+                ward: patientRecord.ward,
+                medical_history: patientMedicalHistory
+            },
+            service_history: serviceHistory
+        };
+
         return res.status(200).json({
             success: true,
-            data: serviceHistory
+            data: responseData
         });
     } catch (error) {
         console.error('Error fetching service history:', error);

@@ -38,20 +38,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve the 'uploads/profile-pictures' directory
-app.use(
-  "/uploads/profile-pictures",
-  express.static(path.join(__dirname, "uploads", "profile-pictures"))
-);
+app.use("/uploads/profile-pictures",express.static(path.join(__dirname, "uploads", "profile-pictures")));
 // Serve the 'uploads/attachments' directory
-app.use(
-  "/uploads/patient-record",
-  express.static(path.join(__dirname, "uploads", "attachments"))
-);
+app.use("/uploads/patient-record",express.static(path.join(__dirname, "uploads", "medical-pictures")));
 // Serve the 'uploads/notifications' directory
-app.use(
-  "/uploads/notifications",
-  express.static(path.join(__dirname, "uploads", "notifications"))
-);
+app.use("/uploads/notifications",express.static(path.join(__dirname, "uploads", "notifications")));
 
 // Routes
 app.use("/api/v1/user", require("./routes/user"));
@@ -67,7 +58,8 @@ app.get("/", (req, res) => {
 // Sync database and start server
 db.sequelize
   .sync({alter:false}) // Set alter to false to avoid modifying existing tables
-  .then(() => {
+  .then(async() => {
+    await db.insertDefaultServices(); // 👈 Run the default insert
     console.log("ദ്ദി(˵ •̀ ᴗ - ˵ )✧🟢👍 Database synced successfully");
     app.listen(PORT, () => {
       console.log(`ദ്ദി(˵ •̀ ᴗ - ˵ )✧🟢👍 Server is running on port ${PORT}`);
