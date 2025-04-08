@@ -39,7 +39,7 @@ module.exports = (sequelize, DataTypes) => {
     PatientRecord.associate = (models) => {
         PatientRecord.belongsTo(models.User, {
             foreignKey: 'patient_id',
-            as: 'Patient',
+            as: 'patient',
         });
 
         // One-to-Many relationship with Erratum
