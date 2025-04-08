@@ -39,8 +39,8 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve the 'uploads/profile-pictures' directory
 app.use("/uploads/profile-pictures",express.static(path.join(__dirname, "uploads", "profile-pictures")));
-// Serve the 'uploads/attachments' directory
-app.use("/uploads/patient-record",express.static(path.join(__dirname, "uploads", "medical-pictures")));
+// Serve the 'uploads/patient-record' directory
+app.use("/uploads/patient-record",express.static(path.join(__dirname, "uploads", "patient-record")));
 // Serve the 'uploads/notifications' directory
 app.use("/uploads/notifications",express.static(path.join(__dirname, "uploads", "notifications")));
 
