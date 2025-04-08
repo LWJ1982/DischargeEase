@@ -24,6 +24,10 @@ module.exports = (sequelize, DataTypes) => {
                 type: DataTypes.INTEGER,
                 allowNull: true,
             },
+            nurse_name: {
+                type: DataTypes.STRING,
+                allowNull: true
+            },
             schedule_time: {
                 type: DataTypes.DATE,
                 allowNull: true,
@@ -40,7 +44,7 @@ module.exports = (sequelize, DataTypes) => {
                 type: DataTypes.JSON,
                 allowNull: true,
             },
-            
+
         },
         {
             tableName: 'service_bookings',

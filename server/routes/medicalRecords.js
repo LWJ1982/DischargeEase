@@ -1,12 +1,13 @@
 // routes/medicalRecords.js
 const express = require('express');
 const router = express.Router();
-const { PatientRecord, Erratum, User } = require('../models');
+const { PatientRecord, Erratum, User, ServiceBooking } = require('../models');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const yup = require('yup');
 const { validateToken } = require("../middlewares/auth");
+const { Op } = require('sequelize');
 
 const createPatientRecordSchema = yup.object({
     patient_id: yup
@@ -21,7 +22,7 @@ const createPatientRecordSchema = yup.object({
 // Configure multer for file uploads
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        const dir = path.join(__dirname, '../uploads/attachments');
+        const dir = path.join(__dirname, '../uploads/patient-record');
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }
@@ -64,7 +65,7 @@ router.get('/', validateToken, async (req, res) => {
             include: [
                 {
                     model: User,
-                    as: 'Patient',
+                    as: 'patient',
                     attributes: ['id', 'name', 'email']
                 }
             ]
@@ -91,7 +92,7 @@ router.get('/:id', validateToken, async (req, res) => {
             include: [
                 {
                     model: User,
-                    as: 'Patient',
+                    as: 'patient',
                     attributes: ['id', 'name', 'email']
                 },
                 {
@@ -141,6 +142,8 @@ router.get('/:id', validateToken, async (req, res) => {
 });
 
 // Create a new patient record (Doctors only)
+//Admin to register a new patient
+// Patient_id here is the id in the users table
 router.post('/', validateToken, async (req, res) => {
     try {
         // Only doctors can create records
@@ -200,14 +203,14 @@ router.post('/', validateToken, async (req, res) => {
         });
     } catch (error) {
         console.error('Error creating patient record:', error);
-    
+
         if (error.name === 'SequelizeUniqueConstraintError') {
             return res.status(400).json({
                 success: false,
                 message: 'A medical record already exists for this patient',
             });
         }
-    
+
         return res.status(500).json({
             success: false,
             message: 'Server error',
@@ -216,8 +219,9 @@ router.post('/', validateToken, async (req, res) => {
     }
 });
 
-// Update medical record with new drawings
+//Update medical record with new drawings
 //In postman, under body, form-data. key is drawings, value is the file to upload
+//The :id here is the id in the patient record, not the patient id in the patient record
 router.put('/:id/drawings', validateToken, upload.array('drawings', 5), async (req, res) => {
     try {
         // Doctors or nurses can update records
@@ -239,7 +243,7 @@ router.put('/:id/drawings', validateToken, upload.array('drawings', 5), async (r
         }
 
         // Process uploaded files
-        const fileUrls = req.files.map(file => `/uploads/medical-pictures/${file.filename}`);
+        const fileUrls = req.files.map(file => `/uploads/patient-record/${file.filename}`);
 
         // Update drawings in the record
         const currentDrawings = record.drawings || [];
@@ -265,6 +269,7 @@ router.put('/:id/drawings', validateToken, upload.array('drawings', 5), async (r
 });
 
 // Add an erratum to a patient record
+//The :id here is the id in the patient record, not the patient id in the patient record
 router.post('/:id/erratum', validateToken, async (req, res) => {
     try {
         // Only doctors can submit errata
@@ -279,12 +284,42 @@ router.post('/:id/erratum', validateToken, async (req, res) => {
         const patient_id = req.params.id;
 
         // Verify the patient record exists
-        const record = await PatientRecord.findByPk(patient_id);
+        const record = await PatientRecord.findByPk(patient_id, {
+            include: [{
+                model: User,
+                as: 'patient',
+                attributes: ['id', 'name']
+            }]
+        });
         if (!record) {
             return res.status(404).json({
                 success: false,
                 message: 'Patient record not found'
             });
+        }
+
+        const patientName = record.patient.name;
+
+        // Retrieve the nurse assigned to the patient (if any)
+        const serviceBookings = await ServiceBooking.findAll({
+            where: {
+                patient_id: patient_id,
+                status: {
+                    [Op.in]: ['pending', 'scheduled', 'in progress', 'completed']
+                }
+            },
+            include: [{
+                model: User,
+                as: 'nurse',
+                attributes: ['id', 'name']
+            }],
+            order: [['updatedAt', 'DESC']],
+            limit: 1
+        });
+
+        let nurseName = null;
+        if (serviceBookings.length > 0 && serviceBookings[0].nurse) {
+            nurseName = serviceBookings[0].nurse.name;
         }
 
         // Create erratum
@@ -295,9 +330,16 @@ router.post('/:id/erratum', validateToken, async (req, res) => {
             timestamp: new Date()
         });
 
+        // Prepare the response data
+        const responseData = {
+            patient_name: patientName,
+            nurse_name: nurseName,
+            ...erratum.toJSON()
+        };
+
         return res.status(201).json({
             success: true,
-            data: erratum,
+            data: responseData,
             message: 'Erratum filed successfully'
         });
     } catch (error) {
