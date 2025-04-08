@@ -12,6 +12,10 @@ module.exports = (sequelize, DataTypes) => {
                 type: DataTypes.INTEGER,
                 allowNull: false,
             },
+            patient_name: {
+                type: DataTypes.STRING(100),
+                allowNull: false,
+            },
             service_id: {
                 type: DataTypes.INTEGER,
                 allowNull: false,
@@ -22,16 +26,21 @@ module.exports = (sequelize, DataTypes) => {
             },
             schedule_time: {
                 type: DataTypes.DATE,
-                allowNull: false,
+                allowNull: true,
             },
             status: {
                 type: DataTypes.STRING,
                 allowNull: false,
-                defaultValue: 'Pending',
+                defaultValue: 'pending',
                 validate: {
-                    isIn: [['Pending', 'Scheduled', 'In Progress', 'Completed', 'Cancelled']],
+                    isIn: [['pending', 'scheduled', 'in progress', 'completed', 'cancelled']],
                 },
             },
+            metadata: {
+                type: DataTypes.JSON,
+                allowNull: true,
+            },
+            
         },
         {
             tableName: 'service_bookings',
@@ -43,7 +52,7 @@ module.exports = (sequelize, DataTypes) => {
     ServiceBooking.associate = (models) => {
         ServiceBooking.belongsTo(models.PatientRecord, {
             foreignKey: 'patient_id',
-            as: 'Patient',
+            as: 'patient',
         });
         ServiceBooking.belongsTo(models.Service, {
             foreignKey: 'service_id',
@@ -51,7 +60,7 @@ module.exports = (sequelize, DataTypes) => {
         });
         ServiceBooking.belongsTo(models.User, {
             foreignKey: 'nurse_id',
-            as: 'Nurse',
+            as: 'nurse',
         });
     };
 
