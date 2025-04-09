@@ -38,11 +38,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve the 'uploads/profile-pictures' directory
-app.use("/uploads/profile-pictures",express.static(path.join(__dirname, "uploads", "profile-pictures")));
+app.use("/uploads/profile-pictures", express.static(path.join(__dirname, "uploads", "profile-pictures")));
 // Serve the 'uploads/patient-record' directory
-app.use("/uploads/patient-record",express.static(path.join(__dirname, "uploads", "patient-record")));
+app.use("/uploads/patient-record", express.static(path.join(__dirname, "uploads", "patient-record")));
 // Serve the 'uploads/notifications' directory
-app.use("/uploads/notifications",express.static(path.join(__dirname, "uploads", "notifications")));
+app.use("/uploads/notifications", express.static(path.join(__dirname, "uploads", "notifications")));
 
 // Routes
 app.use("/api/v1/user", require("./routes/user"));
@@ -57,9 +57,14 @@ app.get("/", (req, res) => {
 
 // Sync database and start server
 db.sequelize
-  .sync({alter:false}) // Set alter to false to avoid modifying existing tables
-  .then(async() => {
-    await db.insertDefaultServices(); // 👈 Run the default insert
+  .sync({ alter: false }) // Set alter to false to avoid modifying existing tables
+  .then(async () => {
+    if (process.env.NODE_ENV === "development") {
+      await db.insertDummyData();// 👈 Run the default insert + dummy data 
+    } else {
+      // Maybe in production you only want services but not test users
+      await db.insertDefaultServices();//  👈 Run the default insert Only
+    }
     console.log("ദ്ദി(˵ •̀ ᴗ - ˵ )✧🟢👍 Database synced successfully");
     app.listen(PORT, () => {
       console.log(`ദ്ദി(˵ •̀ ᴗ - ˵ )✧🟢👍 Server is running on port ${PORT}`);
