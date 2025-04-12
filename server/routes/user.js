@@ -6,14 +6,14 @@ const yup = require("yup");
 const { sign } = require("jsonwebtoken");
 require("dotenv").config();
 const { validateToken } = require("../middlewares/auth");
-const { v4: uuidv4 } = require("uuid");
-const nodemailer = require("nodemailer");
-const { OAuth2Client } = require("google-auth-library");
-const client = new OAuth2Client(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  "postmessage" // required for useGoogleLogin on frontend (auth-code flow)
-);
+// const { v4: uuidv4 } = require("uuid");
+// const nodemailer = require("nodemailer");
+// const { OAuth2Client } = require("google-auth-library");
+// const client = new OAuth2Client(
+//   process.env.GOOGLE_CLIENT_ID,
+//   process.env.GOOGLE_CLIENT_SECRET,
+//   "postmessage" // required for useGoogleLogin on frontend (auth-code flow)
+// );
 
 //   Validation schema
 let registerSchema = yup.object({
@@ -73,85 +73,85 @@ const loginSchema = yup.object({
     ),
 });
 
-//Email verification
-// Configure email transporter for sending verification emails
-const emailTransporter = nodemailer.createTransport({
-  service: process.env.EMAIL_SERVICE || "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD,
-  },
-});
+// //Email verification
+// // Configure email transporter for sending verification emails
+// const emailTransporter = nodemailer.createTransport({
+//   service: process.env.EMAIL_SERVICE || "gmail",
+//   auth: {
+//     user: process.env.EMAIL_USER,
+//     pass: process.env.EMAIL_PASSWORD,
+//   },
+// });
 
-// Function to send verification email to user
-async function sendVerificationEmail(email, token) {
-  // Create verification URL for the frontend to handle
-  const verificationUrl = `http://localhost:3000/api/v1/user/verify-email/${token}`;
+// // Function to send verification email to user
+// async function sendVerificationEmail(email, token) {
+//   // Create verification URL for the frontend to handle
+//   const verificationUrl = `http://localhost:3000/api/v1/user/verify-email/${token}`;
 
-  const mailOptions = {
-    from: process.env.EMAIL_USER || "your-email@gmail.com",
-    to: email,
-    subject: "Email Verification",
-    html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #4a5568;">Welcome to Our Platform!</h1>
-          <p>Thank you for registering. Please verify your email address by clicking the link below:</p>
-          <div style="margin: 25px 0;">
-            <a href="${verificationUrl}" 
-               style="background-color: #4299e1; color: white; padding: 10px 20px; 
-                      text-decoration: none; border-radius: 5px; font-weight: bold;">
-              Verify Email
-            </a>
-          </div>
-          <p>If you did not create an account, no further action is required.</p>
-          <p>This link will expire in 24 hours.</p>
-          <hr style="border: 1px solid #e2e8f0; margin: 20px 0;" />
-          <p style="color: #718096; font-size: 0.875rem;">
-            If you're having trouble clicking the button, copy and paste the URL below into your web browser:
-          </p>
-          <p style="color: #4a5568; word-break: break-all;">
-            ${verificationUrl}
-          </p>
-        </div>
-      `,
-  };
+//   const mailOptions = {
+//     from: process.env.EMAIL_USER || "your-email@gmail.com",
+//     to: email,
+//     subject: "Email Verification",
+//     html: `
+//         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+//           <h1 style="color: #4a5568;">Welcome to Our Platform!</h1>
+//           <p>Thank you for registering. Please verify your email address by clicking the link below:</p>
+//           <div style="margin: 25px 0;">
+//             <a href="${verificationUrl}" 
+//                style="background-color: #4299e1; color: white; padding: 10px 20px; 
+//                       text-decoration: none; border-radius: 5px; font-weight: bold;">
+//               Verify Email
+//             </a>
+//           </div>
+//           <p>If you did not create an account, no further action is required.</p>
+//           <p>This link will expire in 24 hours.</p>
+//           <hr style="border: 1px solid #e2e8f0; margin: 20px 0;" />
+//           <p style="color: #718096; font-size: 0.875rem;">
+//             If you're having trouble clicking the button, copy and paste the URL below into your web browser:
+//           </p>
+//           <p style="color: #4a5568; word-break: break-all;">
+//             ${verificationUrl}
+//           </p>
+//         </div>
+//       `,
+//   };
 
-  try {
-    await emailTransporter.sendMail(mailOptions);
-    console.log("Verification email sent to:", email);
-    return true;
-  } catch (error) {
-    console.error("Email sending error:", error);
-    return false;
-  }
-}
+//   try {
+//     await emailTransporter.sendMail(mailOptions);
+//     console.log("Verification email sent to:", email);
+//     return true;
+//   } catch (error) {
+//     console.error("Email sending error:", error);
+//     return false;
+//   }
+// }
 
-//Todo: middlewares to insert verify-email
-//verifyEmail Read function
-router.get("/verify-email/:token", async (req, res) => {
-  try {
-    const { token } = req.params;
+// //Todo: middlewares to insert verify-email
+// //verifyEmail Read function
+// router.get("/verify-email/:token", async (req, res) => {
+//   try {
+//     const { token } = req.params;
 
-    // Process valid data
-    let user = await User.findOne({ where: { verification_token: token } });
-    if (!user) {
-      res.status(400).json({ message: "Invalid verification token" });
-      return;
-    }
-    // Update user to set email as verified and remove verification token
-    await User.update(
-      { email_verified: true, verification_token: null },
-      { where: { id: user.id } }
-    );
+//     // Process valid data
+//     let user = await User.findOne({ where: { verification_token: token } });
+//     if (!user) {
+//       res.status(400).json({ message: "Invalid verification token" });
+//       return;
+//     }
+//     // Update user to set email as verified and remove verification token
+//     await User.update(
+//       { email_verified: true, verification_token: null },
+//       { where: { id: user.id } }
+//     );
 
-    res
-      .status(200)
-      .json({ message: "Email verified successfully. You can now log in." });
-  } catch (error) {
-    console.error("Verification error:", error);
-    res.status(500).json({ message: "Server error during verification" });
-  }
-});
+//     res
+//       .status(200)
+//       .json({ message: "Email verified successfully. You can now log in." });
+//   } catch (error) {
+//     console.error("Verification error:", error);
+//     res.status(500).json({ message: "Server error during verification" });
+//   }
+// });
 
 // CRUD API functions
 // Register Create Function
@@ -176,8 +176,8 @@ router.post("/register", async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     data.password = await bcrypt.hash(data.password, salt);
 
-    // Generate verification token for email verification
-    const verificationToken = uuidv4();
+    // // Generate verification token for email verification
+    // const verificationToken = uuidv4();
 
     // Create user
     const result = await User.create({
@@ -185,6 +185,7 @@ router.post("/register", async (req, res) => {
       email: data.email,
       password: data.password,
       verification_token: verificationToken,
+      role: data.role,
     });
 
     //Create profile
@@ -193,11 +194,11 @@ router.post("/register", async (req, res) => {
       mobile: result.mobile,
     });
 
-    // Send verification email
-    await sendVerificationEmail(data.email, verificationToken);
+    // // Send verification email
+    // await sendVerificationEmail(data.email, verificationToken);
 
     res.status(201).json({
-      message: "User registered successfully. Please verify your email.",
+      message: "User registered successfully.",
     });
   } catch (err) {
     console.error("Registration error:", err);
@@ -220,21 +221,28 @@ router.post("/login", async (req, res) => {
       where: { email: data.email },
       include: { model: Profile, as: "Profile" },
     });
-    if (user.provider !== "local") {
-      return res.status(400).json({
-        message: "Please use Google login for this account",
-      });
+
+    // Check if user exists
+    if (!user) {
+      return res.status(400).json({ message: errorMsg });
     }
+
+    // // Then check provider (only if user exists)
+    // if (user.provider !== "local") {
+    //   return res.status(400).json({
+    //     message: "Please use Google login for this account",
+    //   });
+    // }
 
     //user email error sequence
     if (!user) {
       return res.status(400).json({ message: errorMsg });
     }
-    if (!user.email_verified) {
-      return res
-        .status(403)
-        .json({ message: "Please verify your email before logging in." });
-    }
+    // if (!user.email_verified) {
+    //   return res
+    //     .status(403)
+    //     .json({ message: "Please verify your email before logging in." });
+    // }
 
     //user password error sequence
     let match = await bcrypt.compare(data.password, user.password);
@@ -265,68 +273,68 @@ router.post("/login", async (req, res) => {
   }
 });
 
-router.post("/google-login", async (req, res) => {
-  try {
-    const { token: code } = req.body;
+// router.post("/google-login", async (req, res) => {
+//   try {
+//     const { token: code } = req.body;
 
-    // Exchange code for tokens
-    const { tokens } = await client.getToken(code);
-    const idToken = tokens.id_token;
+//     // Exchange code for tokens
+//     const { tokens } = await client.getToken(code);
+//     const idToken = tokens.id_token;
 
-    // Verify ID token
-    const ticket = await client.verifyIdToken({
-      idToken,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
+//     // Verify ID token
+//     const ticket = await client.verifyIdToken({
+//       idToken,
+//       audience: process.env.GOOGLE_CLIENT_ID,
+//     });
 
-    const { email, name, picture } = ticket.getPayload();
+//     const { email, name, picture } = ticket.getPayload();
 
-    // Check existing user
-    let user = await User.findOne({ where: { email } });
+//     // Check existing user
+//     let user = await User.findOne({ where: { email } });
 
-    if (user) {
-      if (user.provider !== "google") {
-        return res.status(400).json({
-          message: "Email already registered with password",
-        });
-      }
-    } else {
-      user = await User.create({
-        name,
-        email,
-        provider: "google",
-        email_verified: true,
-      });
+//     if (user) {
+//       if (user.provider !== "google") {
+//         return res.status(400).json({
+//           message: "Email already registered with password",
+//         });
+//       }
+//     } else {
+//       user = await User.create({
+//         name,
+//         email,
+//         provider: "google",
+//         email_verified: true,
+//       });
 
-      await Profile.create({
-        user_id: user.id,
-        mobile: null,
-        profile_picture: picture,
-      });
-    }
+//       await Profile.create({
+//         user_id: user.id,
+//         mobile: null,
+//         profile_picture: picture,
+//       });
+//     }
 
-    const userInfo = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      mobile: user.Profile?.mobile,
-      profilePicture: user.Profile?.profile_picture || picture,
-    };
+//     const userInfo = {
+//       id: user.id,
+//       email: user.email,
+//       name: user.name,
+//       mobile: user.Profile?.mobile,
+//       profilePicture: user.Profile?.profile_picture || picture,
+//     };
 
-    const accessToken = sign(userInfo, process.env.JWT_SECRET, {
-      expiresIn: process.env.TOKEN_EXPIRES_IN || "1d",
-    });
+//     const accessToken = sign(userInfo, process.env.JWT_SECRET, {
+//       expiresIn: process.env.TOKEN_EXPIRES_IN || "1d",
+//     });
 
-    res.json({
-      accessToken,
-      user: userInfo,
-      message: "Google login successful",
-    });
-  } catch (error) {
-    console.error("Google login error:", error);
-    res.status(400).json({ message: `Invalid Google token. ${error}` });
-  }
-});
+//     res.json({
+//       accessToken,
+//       user: userInfo,
+//       message: "Google login successful",
+//     });
+//   } catch (error) {
+//     console.error("Google login error:", error);
+//     res.status(400).json({ message: `Invalid Google token. ${error}` });
+//   }
+// });
 
 //validate Token
 router.get("/auth", validateToken, (req, res) => {
