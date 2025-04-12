@@ -84,7 +84,7 @@ async function insertDummyUsers() {
     {
       name: "Nurse Mike Chen",
       email: "mike.chen@hospital.com",
-      password: "$2a$10$KLJ8HpSOk0GpHwUuRFyUI.DfYrRMQXEPqpsnw2aCUZXdoaYDWmEeG",
+      password: "$2b$10$PHbVtkrRRB8pCWqcCyXmcuUGpu/iZR9ZUlKuiNEVbgnJit/L2/Zyq",
       role: "nurse",
       profileDetails: { department: "Emergency", shift: "Morning" },
       Profile: {
@@ -95,7 +95,7 @@ async function insertDummyUsers() {
     {
       name: "Emma Wong",
       email: "emma.wong@email.com",
-      password: "$2a$10$KLJ8HpSOk0GpHwUuRFyUI.DfYrRMQXEPqpsnw2aCUZXdoaYDWmEeG",
+      password: "$2b$10$PHbVtkrRRB8pCWqcCyXmcuUGpu/iZR9ZUlKuiNEVbgnJit/L2/Zyq",
       role: "patient",
       profileDetails: { emergency_contact: "85534567890", blood_type: "O+" },
       Profile: {
@@ -106,7 +106,7 @@ async function insertDummyUsers() {
     {
       name: "Alex Martinez",
       email: "alex.martinez@email.com",
-      password: "$2a$10$KLJ8HpSOk0GpHwUuRFyUI.DfYrRMQXEPqpsnw2aCUZXdoaYDWmEeG",
+      password: "$2b$10$PHbVtkrRRB8pCWqcCyXmcuUGpu/iZR9ZUlKuiNEVbgnJit/L2/Zyq",
       role: "caregiver",
       profileDetails: { relation: "Son", years_experience: 3 },
       Profile: {
@@ -117,7 +117,7 @@ async function insertDummyUsers() {
     {
       name: "Admin User",
       email: "admin@hospital.com",
-      password: "$2a$10$KLJ8HpSOk0GpHwUuRFyUI.DfYrRMQXEPqpsnw2aCUZXdoaYDWmEeG",
+      password: "$2b$10$PHbVtkrRRB8pCWqcCyXmcuUGpu/iZR9ZUlKuiNEVbgnJit/L2/Zyq",
       role: "admin",
       profileDetails: { department: "IT" },
       Profile: {
