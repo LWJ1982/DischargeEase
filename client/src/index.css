@@ -1,0 +1,30 @@
+:root {
+  font-family: 'Segoe UI', system-ui, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color: #1a1a1a;
+  background-color: #f5f9ff; /* Soft hospital blue */
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #f5f9ff;
+  color: #1a1a1a;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: #1677ff; /* AntD primary */
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  font-family: inherit;
+}
