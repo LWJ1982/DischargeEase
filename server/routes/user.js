@@ -1,22 +1,26 @@
 const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcrypt");
-const { User, Profile,PatientRecord } = require("../models");
+const { User, Profile } = require("../models");
 const yup = require("yup");
 const { sign } = require("jsonwebtoken");
 require("dotenv").config();
 const { validateToken } = require("../middlewares/auth");
 // const { v4: uuidv4 } = require("uuid");
 // const nodemailer = require("nodemailer");
+// const { OAuth2Client } = require("google-auth-library");
+// const client = new OAuth2Client(
+//   process.env.GOOGLE_CLIENT_ID,
+//   process.env.GOOGLE_CLIENT_SECRET,
+//   "postmessage" // required for useGoogleLogin on frontend (auth-code flow)
+// );
 
 //   Validation schema
 let registerSchema = yup.object({
   name: yup
     .string()
     .trim()
-    .min(
-
-      3)
+    .min(3)
     .max(50)
     .required("Name is required")
     .matches(
@@ -47,14 +51,6 @@ let registerSchema = yup.object({
     .string()
     .oneOf([yup.ref("password"), null], "Passwords must match")
     .required("Confirm password is required"),
-
-  role: yup
-    .string()
-    .lowercase()
-    .oneOf(
-      ["doctor", "nurse", "caregiver", "admin", "patient"],
-      "Role must be one of the following: doctor, nurse, caregiver, admin, patient"
-    )
 });
 
 const loginSchema = yup.object({
@@ -76,6 +72,16 @@ const loginSchema = yup.object({
       "password at least 1 letter and 1 number"
     ),
 });
+
+// //Email verification
+// // Configure email transporter for sending verification emails
+// const emailTransporter = nodemailer.createTransport({
+//   service: process.env.EMAIL_SERVICE || "gmail",
+//   auth: {
+//     user: process.env.EMAIL_USER,
+//     pass: process.env.EMAIL_PASSWORD,
+//   },
+// });
 
 // // Function to send verification email to user
 // async function sendVerificationEmail(email, token) {
@@ -108,7 +114,7 @@ const loginSchema = yup.object({
 //           </p>
 //         </div>
 //       `,
-// //   };
+//   };
 
 //   try {
 //     await emailTransporter.sendMail(mailOptions);
@@ -120,73 +126,8 @@ const loginSchema = yup.object({
 //   }
 // }
 
-// CRUD API functions
-// Register Create Function
-router.post("/register", async (req, res) => {
-  let data = req.body;
-
-  try {
-    //Validate Request body
-    data = await registerSchema.validate(data, { abortEarly: false });
-
-    // Process valid data
-    // Check email exists
-    let user = await User.findOne({
-      where: { email: data.email },
-    });
-    if (user) {
-      res.status(400).json({ message: "Email already exists." });
-      return;
-    }
-
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    data.password = await bcrypt.hash(data.password, salt);
-
-    // Generate verification token for email verification
-    // const verificationToken = uuidv4();
-
-    // Create user
-    const result = await User.create({
-      name: data.name,
-      email: data.email,
-      password: data.password,
-      confirmPassword: data.confirmPassword,
-      role: data.role,
-    });
-
-    //Create profile
-    await Profile.create({
-      user_id: result.id,
-      mobile: result.mobile,
-    });
-
-    // Do not auto create patient in patient record
-    // if (data.role === "patient") {
-    //   await PatientRecord.create({
-    //     patient_id: result.id,
-    //     name: result.name,
-    //     ward: result.ward || null,
-    //     medical_history: result.medical_history || null,
-    //     drawings: []
-
-    //   });
-    // }
-
-    // // Send verification email
-    // await sendVerificationEmail(data.email, verificationToken);
-
-    res.status(201).json({
-      message: "User registered successfully.",
-    });
-  } catch (err) {
-    console.error("Registration error:", err);
-    res.status(500).json({ message: "Error registering user", err });
-  }
-});
-
-//Todo: middlewares to insert verify-email
-//verifyEmail Read function
+// //Todo: middlewares to insert verify-email
+// //verifyEmail Read function
 // router.get("/verify-email/:token", async (req, res) => {
 //   try {
 //     const { token } = req.params;
@@ -212,6 +153,60 @@ router.post("/register", async (req, res) => {
 //   }
 // });
 
+// CRUD API functions
+// Register Create Function
+router.post("/register", async (req, res) => {
+  let data = req.body;
+
+  try {
+    //Validate Request body
+    data = await registerSchema.validate(data, { abortEarly: false });
+
+    // Process valid data
+    // Check email exists
+    let user = await User.findOne({
+      where: { email: data.email },
+    });
+    if (user) {
+      res.status(400).json({ message: "Email already exists." });
+      return;
+    }
+
+    // Hash passowrd
+    const salt = await bcrypt.genSalt(10);
+    data.password = await bcrypt.hash(data.password, salt);
+
+    // // Generate verification token for email verification
+    // const verificationToken = uuidv4();
+
+    // Create user
+    const result = await User.create({
+      name: data.name,
+      email: data.email,
+      password: data.password,
+      verification_token: verificationToken,
+      role: data.role,
+    });
+
+    //Create profile
+    await Profile.create({
+      user_id: result.id,
+      mobile: result.mobile,
+    });
+
+    // // Send verification email
+    // await sendVerificationEmail(data.email, verificationToken);
+
+    res.status(201).json({
+      message: "User registered successfully.",
+    });
+  } catch (err) {
+    console.error("Registration error:", err);
+    res.status(500).json({ message: "Error registering user", err });
+  }
+});
+
+
 //Login create function
 router.post("/login", async (req, res) => {
   let data = req.body;
@@ -226,6 +221,13 @@ router.post("/login", async (req, res) => {
       where: { email: data.email },
       include: { model: Profile, as: "Profile" },
     });
+
+    // Check if user exists
+    if (!user) {
+      return res.status(400).json({ message: errorMsg });
+    }
+
+    // // Then check provider (only if user exists)
     // if (user.provider !== "local") {
     //   return res.status(400).json({
     //     message: "Please use Google login for this account",
@@ -253,7 +255,6 @@ router.post("/login", async (req, res) => {
       id: user.id,
       email: user.email,
       name: user.name,
-      role: user.role,
       mobile: user.Profile?.mobile,
       profilePicture: user.Profile?.profile_picture,
     };
@@ -272,16 +273,75 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// router.post("/google-login", async (req, res) => {
+//   try {
+//     const { token: code } = req.body;
+
+//     // Exchange code for tokens
+//     const { tokens } = await client.getToken(code);
+//     const idToken = tokens.id_token;
+
+//     // Verify ID token
+//     const ticket = await client.verifyIdToken({
+//       idToken,
+//       audience: process.env.GOOGLE_CLIENT_ID,
+//     });
+
+//     const { email, name, picture } = ticket.getPayload();
+
+//     // Check existing user
+//     let user = await User.findOne({ where: { email } });
+
+//     if (user) {
+//       if (user.provider !== "google") {
+//         return res.status(400).json({
+//           message: "Email already registered with password",
+//         });
+//       }
+//     } else {
+//       user = await User.create({
+//         name,
+//         email,
+//         provider: "google",
+//         email_verified: true,
+//       });
+
+//       await Profile.create({
+//         user_id: user.id,
+//         mobile: null,
+//         profile_picture: picture,
+//       });
+//     }
+
+//     const userInfo = {
+//       id: user.id,
+//       email: user.email,
+//       name: user.name,
+//       mobile: user.Profile?.mobile,
+//       profilePicture: user.Profile?.profile_picture || picture,
+//     };
+
+//     const accessToken = sign(userInfo, process.env.JWT_SECRET, {
+//       expiresIn: process.env.TOKEN_EXPIRES_IN || "1d",
+//     });
+
+//     res.json({
+//       accessToken,
+//       user: userInfo,
+//       message: "Google login successful",
+//     });
+//   } catch (error) {
+//     console.error("Google login error:", error);
+//     res.status(400).json({ message: `Invalid Google token. ${error}` });
+//   }
+// });
+
 //validate Token
 router.get("/auth", validateToken, (req, res) => {
   let userInfo = {
     id: req.user.id,
     email: req.user.email,
     name: req.user.name,
-    role: req.user.role,
-    createdAt: req.user.createdAt,
-    updatedAt: req.user.updatedAt,
-    profileDetails: req.user.profileDetails
   };
   res.json({ user: userInfo });
 });
@@ -334,7 +394,6 @@ router.delete("/delete-account", validateToken, async (req, res) => {
     console.error("Delete account error:", err);
     res.status(500).json({ message: "Error deleting account" });
   }
-
 });
 
 
