@@ -5,9 +5,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const db = require("./models");
-const addressRoutes = require("./routes/address");
-const userRoutes = require("./routes/user");
-const profileRoutes = require("./routes/profile");
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -40,15 +38,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve the 'uploads/profile-pictures' directory
-app.use(
-  "/uploads/profile-pictures",
-  express.static(path.join(__dirname, "uploads", "profile-pictures"))
-);
+app.use("/uploads/profile-pictures", express.static(path.join(__dirname, "uploads", "profile-pictures")));
+// Serve the 'uploads/patient-record' directory
+app.use("/uploads/patient-record", express.static(path.join(__dirname, "uploads", "patient-record")));
+// Serve the 'uploads/notifications' directory
+app.use("/uploads/notifications", express.static(path.join(__dirname, "uploads", "notifications")));
 
 // Routes
-app.use("/api/v1/addresses", addressRoutes);
-app.use("/api/v1/user", userRoutes);
-app.use("/api/v1/profile", profileRoutes);
+app.use("/api/v1/user", require("./routes/user"));
+app.use("/api/v1/profile", require("./routes/profile"));
+app.use("/api/v1/medicalrecords", require("./routes/medicalRecords"));
+app.use("/api/v1/servicebooking", require("./routes/serviceBooking"));
 
 // Root route for API health check
 app.get("/", (req, res) => {
@@ -57,8 +57,14 @@ app.get("/", (req, res) => {
 
 // Sync database and start server
 db.sequelize
-  .sync({alter:false}) // Set alter to false to avoid modifying existing tables
-  .then(() => {
+  .sync({ alter: false }) // Set alter to false to avoid modifying existing tables
+  .then(async () => {
+    if (process.env.NODE_ENV === "development") {
+      await db.insertDummyData();// 👈 Run the default insert + dummy data 
+    } else {
+      // Maybe in production you only want services but not test users
+      await db.insertDefaultServices();//  👈 Run the default insert Only
+    }
     console.log("ദ്ദി(˵ •̀ ᴗ - ˵ )✧🟢👍 Database synced successfully");
     app.listen(PORT, () => {
       console.log(`ദ്ദി(˵ •̀ ᴗ - ˵ )✧🟢👍 Server is running on port ${PORT}`);
