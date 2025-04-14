@@ -73,13 +73,13 @@ async function insertDummyUsers() {
     {
       name: "Dr. Sarah Johnson",
       email: "sarah.johnson@hospital.com",
-      password: "$2a$10$KLJ8HpSOk0GpHwUuRFyUI.DfYrRMQXEPqpsnw2aCUZXdoaYDWmEeG", // hashed "password123"
+      password: "$2b$10$PHbVtkrRRB8pCWqcCyXmcuUGpu/iZR9ZUlKuiNEVbgnJit/L2/Zyq", // hashed "password123"
       role: "doctor",
       profileDetails: { specialty: "Cardiology", years_experience: 15 },
       Profile: {
         mobile: "85512345678",
-        profile_picture: "/uploads/profiles/sarah.jpg"
-      }
+        profile_picture: "/uploads/profiles/sarah.jpg",
+      },
     },
     {
       name: "Nurse Mike Chen",
@@ -89,8 +89,8 @@ async function insertDummyUsers() {
       profileDetails: { department: "Emergency", shift: "Morning" },
       Profile: {
         mobile: "85523456789",
-        profile_picture: "/uploads/profiles/mike.jpg"
-      }
+        profile_picture: "/uploads/profiles/mike.jpg",
+      },
     },
     {
       name: "Emma Wong",
@@ -100,8 +100,8 @@ async function insertDummyUsers() {
       profileDetails: { emergency_contact: "85534567890", blood_type: "O+" },
       Profile: {
         mobile: "85534567890",
-        profile_picture: "/uploads/profiles/emma.jpg"
-      }
+        profile_picture: "/uploads/profiles/emma.jpg",
+      },
     },
     {
       name: "Alex Martinez",
@@ -111,8 +111,8 @@ async function insertDummyUsers() {
       profileDetails: { relation: "Son", years_experience: 3 },
       Profile: {
         mobile: "85545678901",
-        profile_picture: "/uploads/profiles/alex.jpg"
-      }
+        profile_picture: "/uploads/profiles/alex.jpg",
+      },
     },
     {
       name: "Admin User",
@@ -122,9 +122,9 @@ async function insertDummyUsers() {
       profileDetails: { department: "IT" },
       Profile: {
         mobile: "85556789012",
-        profile_picture: "/uploads/profiles/admin.jpg"
-      }
-    }
+        profile_picture: "/uploads/profiles/admin.jpg",
+      },
+    },
   ];
 
   for (const userData of dummyUsers) {

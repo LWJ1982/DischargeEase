@@ -142,7 +142,7 @@ router.get('/:id', validateToken, async (req, res) => {
 });
 
 // Create a new patient record (Doctors only)
-//Admin to register a new patient
+// Admin to register a new patient
 // Patient_id here is the id in the users table
 router.post('/', validateToken, async (req, res) => {
     try {
