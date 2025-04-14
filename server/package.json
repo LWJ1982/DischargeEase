@@ -5,6 +5,7 @@
   "main": "app.js",
   "scripts": {
     "start": "nodemon server.js",
+    "install": "npm install axios bcrypt cors crypto dotenv ejs express express-rate-limit express-validator google-auth-library helmet jsonwebtoken moment multer nodemailer sequelize sqlite3 uuid yup",
     "dev": "nodemon app.js",
     "test": "jest"
   },
@@ -35,5 +36,8 @@
   },
   "engines": {
     "node": ">=14.0.0"
-  }
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }
